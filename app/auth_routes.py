@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from .models import User
 from . import db, bcrypt
+import jwt
+from datetime import datetime, timedelta
+from app import bcrypt  # assuming you're using Flask-Bcrypt
+from app import SECRET_KEY  # define this in your config
 
 auth = Blueprint('auth', __name__)
 
@@ -39,6 +43,7 @@ def signup():
 
     return jsonify({'message': 'Signup successful'}), 201
 
+auth = Blueprint('auth', __name__)
 
 @auth.route('/login', methods=['POST'])
 def login():
@@ -53,13 +58,23 @@ def login():
         return jsonify({'message': 'User not found'}), 404
 
     if bcrypt.check_password_hash(user.password, password):
+        # ✅ Create JWT token
+        payload = {
+            'user_id': user.id,
+            'role': user.role,
+            'exp': datetime.utcnow() + timedelta(days=1)  # token valid for 1 day
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+
         return jsonify({
             'message': 'Login successful',
+            'token': token,
             'user': {
                 'id': user.id,
                 'full_name': user.full_name,
                 'college_email': user.college_email,
-                'university': user.university
+                'university': user.university,
+                'role': user.role  # 👈 include role for frontend redirect
             }
         }), 200
     else:
